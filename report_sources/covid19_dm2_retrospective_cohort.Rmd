@@ -1,0 +1,331 @@
+---
+title: "Risk factors associated with COVID-19 mortality in patients with type 2 diabetes:
+  a retrospective cohort study"
+author: "Carlos Ballon-Salcedo & Kevin J Paez"
+date: "`r Sys.Date()´"
+format: 
+  html:
+    toc: true
+    toc-depth: 4
+    code-overflow: wrap
+    code-fold: true
+    code-tools: 
+      source: "https://github.com/Carlos-Ballon/#####3"
+    theme: 
+     light: flatly
+     dark: darkly
+    highlight-style: github
+editor: source
+editor_options: 
+  chunk_output_type: inline
+bibliography: grateful-refs.bib
+csl: vancouver.csl
+---
+# Set global knitr options
+
+```{r}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+# Load packages
+
+```{r}
+# Packages
+pacman::p_load(
+  rio,
+  here,
+  reportfactory,
+  rfextras,
+  tidyverse,
+  ggcorrplot,
+  ggsci,
+  ggpubr,
+  ggbiplot,
+  finalfit,
+  gtsummary,
+  flextable,
+  ftExtra,
+  broom,
+  performance,
+  lmtest,
+  stats,
+  moments,
+  nortest,
+  epiDisplay,
+  car,
+  Rtsne,
+  factoextra,
+  corrplot,
+  grateful,
+  patchwork,
+  officer,
+  mice
+)
+# My function scripts
+#rfextras::load_scripts()
+```
+# Import data
+
+```{r}
+#clean_data <- import(here("data", "data.csv"))
+```
+
+# Set themes
+
+## Define `gtsummary` theme
+
+```{r}
+my_gtsummary_theme <-
+  list(
+    "pkgwide-fn:pvalue_fun" = function(x)
+      style_pvalue(x, digits = 2),
+    "pkgwide-fn:prependpvalue_fun" = function(x)
+      style_pvalue(x, digits = 2, prepend_p = TRUE),
+    "tbl_summary-str:continuous_stat" = "{median} ({p25}, {p75})",
+    "tbl_summary-str:categorical_stat" = "{n} ({p}%)",
+    "tbl_summary-fn:percent_fun" = function(x)
+      style_number(x, digits = 1, scale = 100),
+    "tbl_summary-arg:missing" = "no"
+  )
+
+# Set a gtsummary theme
+set_gtsummary_theme(my_gtsummary_theme, theme_gtsummary_compact())
+
+# Set a gtsummary language
+theme_gtsummary_language(language = "en")
+```
+
+## Define `flextable` theme
+
+```{r}
+my_flextable_theme <- function(x, bold_header = FALSE) {
+  std_border <- fp_border(width = 1, color = "grey14")
+  
+  x <- border_remove(x)
+  x <- hline_top(x, border = std_border, part = "header")
+  x <- hline_bottom(x, border = std_border, part = "header")
+  x <- bold(x, bold = bold_header, part = "header")
+  x <- hline_bottom(x, border = std_border, part = "body")
+  x <- align(x, align = "left", part = "body")
+  x <- align(x, align = "center", part = "header")
+  x <- font(x, part = "all", fontname = "Segoe UI")
+  fix_border_issues(x, part = "all")
+  autofit(x)
+}
+```
+
+# Process data
+
+## Remove missing values (\>10% by variable)
+
+```{r}
+# For imputation
+vars_to_keep = c("glucose", "urea", "creatinine")
+
+data_filtered = data |>
+  dplyr::select(
+    all_of(vars_to_keep),
+    where(~ sum(is.na(.)) < 90)
+  )
+```
+
+::: {style="text-align: justify"}
+The following variables were removed: mcv, mch, hemoglobin, hematocrit, creatinine, urea, glucose, ph, anion_gap, sodio, potasio, cloro, calcio, fi_o2, pco2, hco3, lactate, antiparasitic.
+:::
+
+## Matching
+
+The matchup will be with a 1:3 ratio match.
+
+```{r}
+# Matching for Causal Inference
+data_match_object <- MatchIt::matchit(
+  I(t2dm == "yes") ~ edad,
+  data = data_filtered,
+  exact = ~ sex,
+  caliper = c(edad = 3),
+  std.caliper = T,
+  distance = "euclidean",
+  ratio = 3
+)
+
+# Construct a matched dataset from a matchit object
+data_match <- MatchIt::match.data(data_match_object, subclass = "matched_id")
+```
+
+## Recode and relevel (dictionary)
+
+::: {style="text-align: justify"}
+This subsection converts categorical variables into factors and recode/clean values using a data dictionary. The categorical variables will be saved as factor vectors, while some continuous/numeric variables will be categorized and converted into factors. Then, recode and change the factor levels using the `forcats` package. Also, the `finalfit` package will be utilized to label variables, while the `ftExtra` package will detect special characters and format the character columns as markdown text to be added to the flextable object. An alternate option is to utilize the `matchmaker` package for dictionary-based cleanup or `labelled` package to manipulate metadata. The disadvantage of categorizing continuous variables is that information is discarded. To address this, repeat the analysis on continuous variables to ensure there are no differences in the conclusion (sensitivity analysis).
+:::
+
+> 📝***NOTE:*** The markdown texts is by design a plain text
+
+### Exposures and outcomes
+
+::: {style="text-align: justify"}
+Potential risk factors associated with mortality caused by COVID-19 in patients with type II diabetes mellitus (T2DM) are presented, each factor/variable is labeled with a legend that indicates its clinical importance, accuracy, and number of events. This is see in the **dictionary** script.
+:::
+
+-   Clinically important with enough evidence but with small number of events, shown as `\####`
+-   Clinically important with enough evidence and enough number of events, shown as `\###`
+-   Clinically important with limited evidence, shown as `\##`
+-   Inconsistent or contradictory evidence and unconfirmed accuracy (self-reported) `\#`
+
+```{r}
+data_for_eda <- dictionary(data_match)
+```
+
+## Multiple Imputation with MICE
+To adapt
+https://stackoverflow.com/questions/53014141/mice-splitting-imputed-data-for-further-analysis
+
+```{r}
+
+colSums(is.na(input_data))
+
+# Selecction of variables that may help to impute variables with missing data
+input_data = 
+  data_for_eda |>
+    dplyr::select(
+      # Demographic characteristics and clinical history
+      edad,
+      sex,
+      t2dm,
+      hta,
+      # Signs and symptoms
+      fever,
+      tos,
+      dolor_de_garganta,
+      malestar_general,
+      taquipnea,
+      disnea, # Ok
+      polidipysia,
+      polifagia,
+      # Vital signs
+      frecuencia_respiratoria,
+      frecuencia_cardiaca,
+      p_a_sistolica,
+      p_a_diastolica,
+      # Laboratory findings
+      wbc,
+      neutrofilos,
+      linfocitos,
+      #nlr,
+      platelets,
+      #hemoglobina,
+      #mcv,
+      #mch,
+      glucose,
+      urea,
+      creatinine,
+      #lactate,
+      # Blood gas findings
+      saturacion_de_oxigeno,
+      fio2,
+      pafi,
+      #pafi_cal,
+      pao2,
+      # Follow-up
+      len_hosp_stay,
+      # outcomes
+      outcome
+    )
+
+## Imputation with mice. PMM = Predictive mean matching
+data_imputated =
+  mice(
+    input_data,
+    m = 20,
+    method = c(
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "logreg",
+      "",
+      "",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      "pmm",
+      ""
+    ),
+    maxit = 20,
+    seed = 500
+    
+  )
+
+# For one variable
+data_imputated$imp$len_hosp_stay
+
+# # Complete
+# data_match_eda_1 = complete(imput_b, 1)
+
+# Adapt for design: separate for patients with diabetes and without diabetes
+
+d.long <- mice::complete(data_imputated, "long", include = T)
+
+d.long.t2dm <- d.long[which(d.long$t2dm == 'yes'),]
+d.long.nont2dm <- d.long[which(d.long$t2dm == 'no'),]
+
+data_imputated_t2dm <- as.mids(d.long.t2dm)
+data_imputated_nont2dm <- as.mids(d.long.nont2dm)
+
+data_imputated_t2dm$imp$creatinine
+data_imputated_nont2dm$imp$creatinine
+```
+
+```{r fig.height=10, fig.width=10, fig.align='center'}
+model_imputation_t2dm <- 
+  with(imp.b_t2dm, glm(
+    outcome ~ edad + hta + disnea + frecuencia_respiratoria + 
+    frecuencia_cardiaca + p_a_sistolica + p_a_diastolica + 
+    wbc + neutrofilos + linfocitos + platelets + glucose + 
+    urea + creatinine + saturacion_de_oxigeno + fio2 + pafi + pao2,
+    family = binomial(link = "logit")))
+
+model_imputation_non <- 
+  with(imp.b_nont2dm, glm(
+    outcome ~ edad + hta + disnea + frecuencia_respiratoria + 
+    frecuencia_cardiaca + p_a_sistolica + p_a_diastolica + 
+    wbc + neutrofilos + linfocitos + platelets + glucose + 
+    urea + creatinine + saturacion_de_oxigeno + fio2 + pafi + pao2,
+    family = binomial(link = "logit")))
+
+pool.imputation_non <- pool(model_imputation_non)
+summary(pool.imputation_non)
+
+# Visual check of model assumptions
+performance::check_model(m3_non)
+
+# Model performance
+broom::glance(m3_non)
+
+# Indices of model performance
+performance::model_performance(m3_non)
+
+# Check for multicollinearity
+performance::check_collinearity(m3_non)
+```
+
+
+
+
