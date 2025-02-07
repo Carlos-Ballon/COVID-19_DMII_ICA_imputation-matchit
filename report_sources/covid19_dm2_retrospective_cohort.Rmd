@@ -94,8 +94,7 @@ my_gtsummary_theme <-
     "tbl_summary-str:categorical_stat" = "{n} ({p}%)",
     "tbl_summary-fn:percent_fun" = function(x)
       style_number(x, digits = 1, scale = 100),
-    "tbl_summary-arg:missing" = "ifany",
-    "tbl_summary-arg:missing_text" = "Missing"
+    "tbl_summary-arg:missing" = "no"
   )
 
 # Set a gtsummary theme
@@ -129,8 +128,7 @@ my_flextable_theme <- function(x, bold_header = FALSE) {
 ## Remove missing values (\>10% by variable)
 
 ```{r}
-# For imputation
-vars_to_keep = c("glucose", "urea", "creatinine")
+vars_to_keep = c("glucose", "urea", "creatinine") # To impute
 
 data_filtered = data |>
   dplyr::select(
@@ -375,13 +373,13 @@ tbl_1.1 <- data_matched |>
     statistic = list(edad ~ "{mean} ({sd})"),
     digits = list(all_continuous() ~ c(1, 1))
   ) |>
-  add_overall() |>
   add_p(edad ~ "t.test",
         test.args = all_tests("t.test") ~ list(var.equal = TRUE)) |>
   bold_p(t = 0.05) |>
+  add_n(statistic = "{n_miss} ({p_miss}%)") |> 
   modify_header(all_stat_cols() ~ "**{level}** (n = {n})",
-                stat_0 = "**All patients** (n = {N})",
-                p.value = "**p value**") |>
+                p.value = "**p value**",
+                n = "**Missing**") |>
   modify_spanning_header(c(stat_1, stat_2) ~ "**Type 2 Diabetes**")
 
 # Signs and symptoms
@@ -392,9 +390,9 @@ tbl_1.2 <- data_matched |>
     percent = "column",
     digits = list(all_continuous() ~ c(1, 1))
   ) |>
-  add_overall() |>
   add_p() |>
   bold_p(t = 0.05) |>
+  add_n(statistic = "{n_miss} ({p_miss}%)") |>
   modify_header(all_stat_cols() ~ "**{level}** (n = {n})")
 
 # Vital signs
@@ -406,9 +404,9 @@ tbl_1.3 <- data_matched |>
     statistic = list(frecuencia_cardiaca ~ "{mean} ({sd})"),
     digits = list(all_continuous() ~ c(1, 1))
   ) |>
-  add_overall() |>
   add_p() |>
   bold_p(t = 0.05) |>
+  add_n(statistic = "{n_miss} ({p_miss}%)") |>
   modify_header(all_stat_cols() ~ "**{level}** (n = {n})")
 ```
 
@@ -443,19 +441,21 @@ table_1
 
 ```{r}
 # Laboratory findings
-tbl_2.1 <- data_matched |>
+tbl_2.1 <-
+  data_matched |>
   tbl_summary(
     include = c(wbc:creatinine, t2dm),
     by = t2dm,
     percent = "column",
     digits = list(all_continuous() ~ c(1, 1))
   ) |>
-  add_overall() |>
+  add_overall() |> 
   add_p() |>
   bold_p(t = 0.05) |>
+  add_n(statistic = "{n_miss} ({p_miss}%)") |>
   modify_header(all_stat_cols() ~ "**{level}** (n = {n})",
-                stat_0 = "**All patients** (n = {N})",
-                p.value = "**p value**") |>
+                p.value = "**p value**",
+                n = "**Missing**") |>
   modify_spanning_header(all_stat_cols(stat_0 = FALSE) ~ "**Type 2 Diabetes**")
 
 # Blood gas findings
@@ -466,9 +466,9 @@ tbl_2.2 <- data_matched |>
     percent = "column",
     digits = list(all_continuous() ~ c(1, 1))
   ) |>
-  add_overall() |>
   add_p() |>
   bold_p(t = 0.05) |>
+  add_n(statistic = "{n_miss} ({p_miss}%)") |>
   modify_header(all_stat_cols() ~ "**{level}** (n = {n})")
 
 # Treatments
@@ -481,9 +481,9 @@ tbl_2.3 <- data_matched |>
     percent = "column",
     digits = list(all_continuous() ~ c(1, 1))
   ) |>
-  add_overall() |>
   add_p() |>
-  bold_p(t = 0.05) |> 
+  bold_p(t = 0.05) |>
+  add_n(statistic = "{n_miss} ({p_miss}%)") |>
   modify_header(all_stat_cols() ~ "**{level}** (n = {n})")
 ```
 
@@ -494,7 +494,7 @@ table_2 = tbl_stack(
   group_header = c("Laboratory findings", "Blood gas findings", "Treatment"),
   quiet = TRUE
 ) |>
-  modify_caption("Table 2. Laboratory findings and treatment of patients")
+  modify_caption("**Table 2**. Laboratory findings and treatment of patients")
 
 # Convert gtsummary object to a flextable object and format character columns
 flex_table_2 <- table_2 |>
@@ -526,7 +526,8 @@ tbl_3.1 <-
   add_p() |>
   bold_p(t = 0.05) |>
   modify_header(all_stat_cols() ~ "**{level}** (n = {n})",
-                p.value = "**p value**")
+                p.value = "**p value**"
+                )
 
 # Signs and symptoms
 tbl_3.2 <-
@@ -1490,6 +1491,7 @@ To adapt
 https://stackoverflow.com/questions/53014141/mice-splitting-imputed-data-for-further-analysis
 For descriptive
 
+
 ```{r}
 # Selecction of variables that may help to impute variables with missing data
 input_data =
@@ -1572,6 +1574,7 @@ data_matched |>
     #cluster = "reg"
   )
 ```
+
 ### Missing vs no missing
 
 ```{r}
@@ -1614,74 +1617,6 @@ table_missing <- data_matched |>
                 all_stat_cols() ~ "**{level}**<br>N = {n} ({style_percent(p, digits=1)}%)") |> 
   modify_caption("Participant characteristics, by missingness") |> 
   bold_labels()
-```
-
-### Multiple data imputation, m = 5
-
-```{r}
-## Imputation with mice
-data_imputated =
-  mice(
-    input_data,
-    m = 5,
-    method = c(
-      # For demographics
-      "",
-      "",
-      "",
-      "",
-      "",
-      # Signs and Symptoms
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      # Vital signs
-      "pmm",
-      "pmm",
-      "pmm",
-      "pmm",
-      # Laboratory findings
-      "pmm",
-      "pmm",
-      "pmm",
-      "pmm",
-      "pmm",
-      "pmm",
-      "pmm",
-      "pmm",
-      # Blood gas findings
-      "pmm",
-      "pmm",
-      "pmm",
-      "pmm",
-      # Treatments
-      "",
-      # Follow up and outcomes
-      "pmm",
-      ""),
-    maxit = 20,
-    seed = 500
-    )
-
-data_imputated_l <- complete(data_imputated, "long", include = TRUE)
-```
-
-
-```{r}
-ggmice(data_imputated, aes(x = .imp, y = glucose)) +
-  geom_jitter(height = 0, width = 0.25) +
-  geom_boxplot(width = 0.5, size = 1, alpha = 0.55, outlier.shape = NA) +
-  labs(x = "Imputation number")
-
-purrr::map(c("glucose", "creatinine", "urea"), ~ {
-  ggmice(data_imputated, aes(x = .imp, y = .data[[.x]])) +
-    geom_boxplot() +
-    labs(x = "Imputation number")
-}) |> 
-  patchwork::wrap_plots()
 ```
 
 ### Multiple data imputation, m = 20
@@ -1733,6 +1668,102 @@ data_imputated =
     maxit = 20,
     seed = 500
     )
+
+data_imputated_l <- complete(data_imputated, action = "long")
+```
+
+```{r}
+ggmice(data_imputated, aes(x = .imp, y = urea)) +
+  geom_jitter(height = 0, width = 0.25) +
+  geom_boxplot(width = 0.5, size = 1, alpha = 0.55, outlier.shape = NA) +
+  labs(x = "Imputation number")
+
+purrr::map(c("glucose", "creatinine", "urea"), ~ {
+  ggmice(data_imputated, aes(x = .imp, y = .data[[.x]])) +
+    geom_boxplot() +
+    labs(x = "Imputation number")
+}) |> 
+  patchwork::wrap_plots()
+```
+
+### Descriptive statistics after multiple imputation
+
+```{r}
+mean_imp <- tapply(data_imputated_l$glucose, 
+                  data_imputated_l$.imp, 
+                  mean,
+                  na.rm = T)
+
+var_mean <- tapply(data_imputated_l$glucose, 
+                   data_imputated_l$.imp,
+                   var, na.rm = T) / nrow(data_imputated$data)
+
+cbind("mean" = mean_imp,
+      "var.mean" = var_mean)
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(mean_imp ~ I(1:data_imputated$m),
+     ylab = "Mean", xlab = "Imputation",
+     main = "Mean\nby imputation")
+abline(h=mean(mean_imp), col="red", lty=2, lwd=2)
+plot(var_mean ~ I(1:data_imputated$m),
+     ylab = "Variance of Mean", xlab = "Imputation",
+     main = "Variance of Mean\nby imputation")
+abline(h=mean(var_mean), col="red", lty=2, lwd=2)
+```
+
+
+### Multiple data imputation, m = 20, again
+
+```{r}
+# ## Imputation with mice
+# data_imputated =
+#   mice(
+#     input_data,
+#     m = 20,
+#     method = c(
+#       # For demographics
+#       "",
+#       "",
+#       "",
+#       "",
+#       "",
+#       # Signs and Symptoms
+#       "",
+#       "",
+#       "",
+#       "",
+#       "",
+#       "",
+#       # Vital signs
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       # Laboratory findings
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       # Blood gas findings
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       "pmm",
+#       # Treatments
+#       "",
+#       # Follow up and outcomes
+#       "pmm",
+#       ""),
+#     maxit = 20,
+#     seed = 500
+#     )
 ```
 
 ### Adapt for design: separate for patients with diabetes and without diabetes
@@ -1830,5 +1861,139 @@ flex_table_s1 <- table_uv |>
 flex_table_s1
 ```
 
+# Save outputs
 
+All distances are in inches
+
+```{r}
+outputs_dir <- "~/outputs/"
+```
+
+```{r}
+sect_properties <- prop_section(
+  type = "continuous",
+  page_margins = page_mar(bottom = 1, top = 1, right = 1, left = 1))
+```
+
+## Tables
+
+```{r}
+# Save tables
+save_as_docx(
+  flex_table_1,
+  path = stringr::str_glue(outputs_dir, "Table_1.docx"),
+  align = "center")
+
+save_as_docx(
+  flex_table_2,
+  path = stringr::str_glue("Table_2.docx"),
+  align = "center")
+
+save_as_docx(
+  flex_table_3,
+  path = stringr::str_glue(outputs_dir, "Table_3.docx"),
+  align = "center")
+
+save_as_docx(
+  flex_table_4,
+  path = stringr::str_glue(outputs_dir, "Table_4.docx"),
+  align = "center")
+
+save_as_docx(
+  flex_table_5,
+  path = stringr::str_glue(outputs_dir, "Table_5.docx"),
+  align = "center")
+
+save_as_docx(
+  flex_table_s1,
+  path = stringr::str_glue(outputs_dir, "Table_s1.docx"),
+  align = "center")
+
+save_as_docx(
+  flex_table_s2,
+  path = stringr::str_glue(outputs_dir, "Table_s2.docx"),
+  align = "center")
+```
+
+## Figures
+
+```{r}
+# Save supplementary figure 1 (EPS)
+ggsave(
+  plot = FS1,
+  filename = stringr::str_glue(outputs_dir, "FIG_S1.eps"),
+  width = 12,
+  height = 12,
+  units = "in")
+
+# Save supplementary figure 1 (PNG)
+ggsave(
+  plot = FS1,
+  filename = stringr::str_glue(outputs_dir, "FIG_S1.png"),
+  width = 12,
+  height = 12,
+  dpi = 300,
+  units = "in")
+
+# Save supplementary figure 1 (JPEG)
+ggsave(
+  plot = FS1,
+  filename = stringr::str_glue(outputs_dir, "FIG_S1.jpeg"),
+  width = 12,
+  height = 12,
+  dpi = 500,
+  units = "in")
+
+# Save supplementary figure 2 (EPS)
+ggsave(
+  plot = F1_dm,
+  filename = stringr::str_glue(outputs_dir, "FIG_S2.eps"),
+  width = 14,
+  height = 6,
+  units = "in")
+
+# Save supplementary figure 2 (PNG)
+ggsave(
+  plot = F1_dm,
+  filename = stringr::str_glue(outputs_dir, "FIG_S2.png"),
+  width = 14,
+  height = 6,
+  dpi = 500,
+  units = "in")
+
+# Save supplementary figure 2 (JPEG)
+ggsave(
+  plot = F1_dm,
+  filename = stringr::str_glue(outputs_dir, "FIG_S2.jpeg"),
+  width = 14,
+  height = 6,
+  dpi = 500,
+  units = "in")
+
+# Save supplementary figure 3 (EPS)
+ggsave(
+  plot = F1_non,
+  filename = stringr::str_glue(outputs_dir, "FIG_S3.eps"),
+  width = 14,
+  height = 6,
+  units = "in")
+
+# Save supplementary figure 3 (PNG)
+ggsave(
+  plot = F1_non,
+  filename = stringr::str_glue(outputs_dir, "FIG_S3.png"),
+  width = 14,
+  height = 6,
+  dpi = 500,
+  units = "in")
+
+# Save supplementary figure 3 (JPEG)
+ggsave(
+  plot = F1_non,
+  filename = stringr::str_glue(outputs_dir, "FIG_S3.jpeg"),
+  width = 14,
+  height = 6,
+  dpi = 500,
+  units = "in")
+```
 
