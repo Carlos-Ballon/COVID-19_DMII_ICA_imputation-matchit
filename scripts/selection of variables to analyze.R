@@ -9,7 +9,6 @@ var_selec_analysis <- function(data) {
       obesity,
       t2dm,
       hta,
-      len_hosp_stay,
       
       # Signs and symptoms
       fever,
@@ -48,6 +47,10 @@ var_selec_analysis <- function(data) {
       nlr.c,
       platelets,
       platelets.c,
+      glucose,
+      glucose.c,
+      urea,
+      creatinine,
       
       # Blood gas findings
       saturacion_de_oxigeno,
@@ -60,14 +63,18 @@ var_selec_analysis <- function(data) {
       pafi_cal.c,
       pao2,
       pao2.c,
-      
+
       # Treatment
       corticoides,
       anticoagulantes,
       antipaludicos,
       pronacion,
       
+      # Follow-up
+      len_hosp_stay,
       # outcomes
-      outcome
+      outcome,
+      outcome_ph
     )
 }
+

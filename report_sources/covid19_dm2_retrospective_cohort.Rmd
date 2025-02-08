@@ -849,7 +849,7 @@ data_uv =
 ```{r}
 table_s1.1_uv <- data_uv_dm |>
   tbl_uvregression(
-    include = c(edad.c:pronacion),
+    include = c(edad:pronacion),
     y = Surv(len_hosp_stay, outcome_ph),
     method = coxph,
     exponentiate = TRUE,
@@ -900,7 +900,7 @@ table_s1.1_uv <- data_uv_dm |>
 ```{r}
 table_s1.2_uv <- data_uv_nondm |>
   tbl_uvregression(
-    include = c(edad.c:pronacion),
+    include = c(edad:pronacion),
     y = outcome,
     method = glm,
     method.args = list(family = binomial),
@@ -1329,7 +1329,7 @@ table_5.1_uv <- data_uv_dm |>
       edad.c,
       hta,
       frecuencia_cardiaca,
-      nlr,
+      neutrofilos,
       creatinine,
       saturacion_de_oxigeno,
       pao2,
@@ -1347,7 +1347,7 @@ table_5.1_uv <- data_uv_dm |>
       edad.c ~ "Age (years)",
       hta ~ "Hypertension",
       frecuencia_cardiaca ~ "Heart rate (BPM)",
-      nlr ~ "NLR",
+      neutrofilos ~ "Neutrophils (x10^9/L)",
       creatinine ~ "Creatinine (mg/dL)",
       saturacion_de_oxigeno ~ "SaO~2~",
       pao2 ~ "PaO~2~",
@@ -1363,7 +1363,7 @@ table_5.1_uv <- data_uv_dm |>
 table_5.1_mv <-
   coxph(
     Surv(len_hosp_stay, outcome_ph) ~ edad.c + hta + frecuencia_cardiaca + 
-      nlr + saturacion_de_oxigeno + creatinine + saturacion_de_oxigeno +
+      neutrofilos + saturacion_de_oxigeno + creatinine + saturacion_de_oxigeno +
       pao2 + antipaludicos,
     data = data_uv_dm
   ) |>
@@ -1376,7 +1376,7 @@ table_5.1_mv <-
       edad.c ~ "Age (years)",
       hta ~ "Hypertension",
       frecuencia_cardiaca ~ "Heart rate (BPM)",
-      nlr ~ "NLR",
+      neutrofilos ~ "Neutrophils (x10^9/L)",
       creatinine ~ "Creatinine (mg/dL)",
       saturacion_de_oxigeno ~ "SaO~2~",
       pao2 ~ "PaO~2~",
@@ -1780,19 +1780,18 @@ data_imputated_nondm <- as.mids(d.long.nondm)
 data_imputated_dm$imp$creatinine
 data_imputated_nondm$imp$creatinine
 ```
-###
 
 ```{r fig.height=10, fig.width=10, fig.align='center'}
 model_imputation_dm <-
   with(data_imputated_dm, coxph(
     Surv(len_hosp_stay, outcome_ph) ~ edad.c + hta + frecuencia_cardiaca + 
-      nlr + creatinine + saturacion_de_oxigeno + pao2 + antipaludicos)
+      neutrofilos + creatinine + saturacion_de_oxigeno + pao2 + antipaludicos)
     )
 
 model_imputation_nondm <-
   with(data_imputated_nondm, coxph(
     Surv(len_hosp_stay, outcome_ph) ~ edad.c + hta + frecuencia_cardiaca + 
-      nlr + creatinine + saturacion_de_oxigeno + pao2 + antipaludicos)
+      neutrofilos + creatinine + saturacion_de_oxigeno + pao2 + antipaludicos)
     )
 
 pool.imputation_dm <- pool(model_imputation_dm)
@@ -1805,7 +1804,7 @@ summary_results = summary(pool.imputation_dm, conf.int = TRUE)
 tbl_dm_imput <-
   data_imputated_dm |> 
   with(coxph(Surv(len_hosp_stay, outcome_ph) ~ edad.c + 
-                                     hta + frecuencia_cardiaca + nlr + 
+                                     hta + frecuencia_cardiaca + neutrofilos + 
                                      creatinine + saturacion_de_oxigeno + 
                                      pao2 + antipaludicos)) |> 
   tbl_regression(exponentiate = TRUE,
@@ -1813,7 +1812,7 @@ tbl_dm_imput <-
                    edad.c ~ "Age (years)",
                    hta ~ "Hypertension",
                    frecuencia_cardiaca ~ "Heart rate (BPM)",
-                   nlr ~ "NLR",
+                   neutrofilos ~ "Neutroph",
                    creatinine ~ "Creatinine (mg/dL)",
                    saturacion_de_oxigeno ~ "SaO~2~",
                    pao2 ~ "PaO~2~",
@@ -1824,7 +1823,7 @@ tbl_dm_imput <-
 tbl_nondm_imput <-
   data_imputated_nondm |> 
   with(coxph(Surv(len_hosp_stay, outcome_ph) ~ edad.c + 
-                                     hta + frecuencia_cardiaca + nlr + 
+                                     hta + frecuencia_cardiaca + neutrofilos + 
                                      creatinine + saturacion_de_oxigeno + 
                                      pao2 + antipaludicos)) |> 
   tbl_regression(exponentiate = TRUE,
@@ -1832,7 +1831,7 @@ tbl_nondm_imput <-
                    edad.c ~ "Age (years)",
                    hta ~ "Hypertension",
                    frecuencia_cardiaca ~ "Heart rate (BPM)",
-                   nlr ~ "NLR",
+                   neutrofilos ~ "NLR",
                    creatinine ~ "Creatinine (mg/dL)",
                    saturacion_de_oxigeno ~ "SaO~2~",
                    pao2 ~ "PaO~2~",

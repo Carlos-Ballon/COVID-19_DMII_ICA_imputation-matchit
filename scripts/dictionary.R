@@ -239,15 +239,6 @@ dictionary <- function(data) {
         fct_relevel("Yes", "No") |>
         ff_label("Poliphagia"),
       
-      disgeusia = factor(disgeusia) |> ####
-        fct_recode(
-          "No" = "no",
-          "Yes" = "yes",
-          "No" = "N"
-        ) |>
-        fct_relevel("Yes", "No") |>
-        ff_label("Dysgeusia"),
-      
       taquipnea = factor(taquipnea) |> ###
         fct_recode("No" = "no",
                    "Yes" = "yes") |>
@@ -361,6 +352,18 @@ dictionary <- function(data) {
         fct_relevel(">= 125", "< 125") |>
         ff_label("Platelets (×10^−9^/L)"),
       
+      glucose = ff_label(glucose, "Glucose (mg/dL)"),
+      ###
+      
+      glucose.c = case_when(glucose < 200 ~ "< 200",
+                              TRUE ~ ">= 200") |>
+        fct_relevel(">= 200", "< 200") |>
+        ff_label("Glucose (mg/dL)"),
+      
+      urea = ff_label(urea, "Urea (mg/dL)"),
+      
+      creatinine = ff_label(creatinine, "Creatinine (mg/dL)"),
+
       frecuencia_cardiaca = ff_label(frecuencia_cardiaca, "Heart rate (BPM)"),
       ##
       
@@ -428,7 +431,14 @@ dictionary <- function(data) {
       outcome = factor(outcome) |>
         fct_recode("Non-survivor" = "non.surv",
                    "Survivor" = "survivor") |>
-        fct_relevel("Survivor", "Non-survivor"),
+        fct_relevel("Survivor", "Non-survivor") |> 
+        ff_label("Outcomes"),
+      
+      outcome_ph = outcome |>
+        fct_recode("0" = "Survivor", 
+                   "1" = "Non-survivor") |>
+        as.numeric() - 1 |> # Convert to binary (0 = Survivor, 1 = Non-survivor)
+        ff_label("Outcomes"),
       
       cc = case_when(t2dm == "yes" ~ "case",
                      t2dm == "no" ~ "control")
