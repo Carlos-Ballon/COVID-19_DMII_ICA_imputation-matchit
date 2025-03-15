@@ -67,7 +67,8 @@ pacman::p_load(
   ggsurvfit,
   gtsummary,
   tidycmprsk,
-  ggmice
+  ggmice,
+  ezfun
 )
 ezfun::set_ccf_palette("contrast")
 # My function scripts
@@ -98,7 +99,7 @@ my_gtsummary_theme <-
   )
 
 # Set a gtsummary theme
-set_gtsummary_theme(my_gtsummary_theme, theme_gtsummary_compact())
+gtsummary::set_gtsummary_theme(my_gtsummary_theme, theme_gtsummary_compact())
 
 # Set a gtsummary language
 theme_gtsummary_language(language = "en")
@@ -776,7 +777,7 @@ table_4
 In the univariate analysis, variables that were self-reported or did not have enough events were eliminated; this will help to avoid *overfitting* in the subsequent multivariable analysis. Other variables such as sex, smoker, alcoholism, dislip, obesity, malestar_general, anosmia, disgeusia, emesis, diarrea, poliuria, polidipysia, sensorio, p_a_sistolica, p_a_diastolica, platelets.c, pafi_cal.c, antibiotics, corticoides, anticoagulantes, pronacion, showed *no differences* between groups in the bivariate analysis (Tables 4 and 5).
 :::
 
-| Self-reported                                                                                                                                                              | Not enough event (\<10)                                                                                                                                                                                                                               |
+| Self-reported                                                                                                                                                              | Not enough event (\<10)                                                                                                                                                 |
 |------------------------------------|------------------------------------|
 | dolor_de_garganta, malestar_general, headache, anosmia, disgeusia, diarrea, emesis, astenia, dolor_abdominal, perdida_de_peso, sensorio, poliuria, polidipysia, polifagia. | smoker, alcoholism, dislip, ecv, cancer, hiv, immunsupressive_dis, erc, hemodialisis, asma_bronquial, epc, shock_septico, disf_multiorg, f_hepatica_aguda, f_multiorganica, perdida_de_peso, poliuria, polidipysia, polifagia, sensorio, antibiotics. |
 
